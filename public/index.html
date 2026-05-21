@@ -427,13 +427,9 @@ async function sendMessage(override) {
 
   try {
     // Call via /api/chat (Vercel serverless function)
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://square-band-6014.peggychiang616.workers.dev', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': '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',
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1000,
