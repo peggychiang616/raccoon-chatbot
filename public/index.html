@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raccoon AI 智能客服</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Mono&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0f14;
+  --surface: #161920;
+  --surface2: #1e2230;
+  --border: #2a2f40;
+  --accent: #4f8eff;
+  --accent2: #7c5cfc;
+  --green: #3dd68c;
+  --red: #ff6b6b;
+  --text: #e8eaf0;
+  --text2: #8b90a8;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.avatar {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.header-info { flex: 1; }
+.header-info h1 { font-size: 15px; font-weight: 700; }
+.header-info p  { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 6px var(--green);
+  animation: pulse 2s infinite;
+}
+
+/* Quick chips */
+.chips {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex; gap: 8px;
+  overflow-x: auto; flex-shrink: 0;
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px; white-space: nowrap;
+  cursor: pointer; transition: all 0.2s;
+  color: var(--text2); font-family: inherit;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,255,0.08); }
+
+/* Chat */
+.chat {
+  flex: 1; overflow-y: auto;
+  padding: 16px; display: flex;
+  flex-direction: column; gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.chat::-webkit-scrollbar { width: 4px; }
+.chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.date-stamp {
+  text-align: center; font-size: 10px;
+  color: var(--text2); font-family: 'Space Mono', monospace;
+  opacity: 0.5; margin-bottom: 4px;
+}
+
+/* Message rows */
+.msg-row {
+  display: flex; flex-direction: column; gap: 6px;
+  animation: fadeUp 0.3s ease;
+}
+.msg-row.user { align-items: flex-end; }
+.msg-row.bot  { align-items: flex-start; }
+
+.msg-inner {
+  display: flex; gap: 10px;
+  align-items: flex-start; max-width: 82%;
+}
+.msg-row.user .msg-inner { flex-direction: row-reverse; }
+
+.msg-icon {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0; margin-top: 2px;
+}
+.bot .msg-icon  { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+.user .msg-icon { background: var(--surface2); border: 1px solid var(--border); }
+
+.bubble {
+  padding: 12px 14px; font-size: 13.5px;
+  line-height: 1.75; border-radius: 16px;
+  white-space: pre-wrap; word-break: break-word;
+}
+.bot  .bubble { background: var(--surface2); border: 1px solid var(--border); border-top-left-radius: 4px; }
+.user .bubble { background: #1e2a4a; border: 1px solid rgba(79,142,255,0.2); border-top-right-radius: 4px; text-align: right; }
+
+/* Product card */
+.product-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px;
+  display: flex; gap: 10px; cursor: pointer;
+  transition: border-color 0.2s; margin-top: 6px;
+  max-width: 75%; margin-left: 40px;
+}
+.product-card:hover { border-color: var(--accent); }
+.product-icon { font-size: 22px; flex-shrink: 0; }
+.product-name { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.product-desc { font-size: 11.5px; color: var(--text2); line-height: 1.5; }
+.product-reason { font-size: 11px; color: #6b7ead; margin-top: 3px; }
+.product-badge {
+  display: inline-block; margin-top: 5px; font-size: 10px;
+  background: rgba(79,142,255,0.15); color: var(--accent);
+  border: 1px solid rgba(79,142,255,0.3);
+  border-radius: 4px; padding: 2px 6px;
+}
+
+/* Handoff */
+.handoff {
+  background: rgba(255,107,107,0.08);
+  border: 1px solid rgba(255,107,107,0.25);
+  border-radius: 10px; padding: 10px 14px;
+  display: flex; gap: 8px; align-items: center;
+  font-size: 12.5px; color: var(--red);
+  margin-left: 40px; max-width: 75%;
+}
+
+/* Quick replies */
+.quick-replies {
+  margin-left: 40px; display: flex;
+  flex-wrap: wrap; gap: 6px;
+}
+.qr-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text2); border-radius: 20px;
+  padding: 5px 12px; font-size: 12px;
+  cursor: pointer; font-family: inherit; transition: all 0.2s;
+}
+.qr-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,255,0.06); }
+
+/* Typing */
+.typing-row {
+  display: flex; gap: 10px; align-items: center;
+  animation: fadeUp 0.3s ease;
+}
+.typing-bubble {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 16px; border-top-left-radius: 4px;
+  padding: 14px 18px; display: flex; gap: 5px; align-items: center;
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text2); animation: bounce 1.2s infinite;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Input */
+.input-bar {
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 12px 16px; display: flex; gap: 10px;
+  align-items: flex-end; flex-shrink: 0;
+}
+textarea {
+  flex: 1; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); font-family: 'Noto Sans TC', sans-serif;
+  font-size: 13.5px; line-height: 1.5;
+  padding: 10px 14px; resize: none; outline: none;
+  min-height: 44px; max-height: 120px;
+  transition: border-color 0.2s;
+}
+textarea:focus { border-color: var(--accent); }
+textarea::placeholder { color: var(--text2); }
+.send-btn {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none; border-radius: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0; transition: all 0.2s; color: white;
+}
+.send-btn:hover { opacity: 0.85; }
+.send-btn:active { transform: scale(0.95); }
+.send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0);opacity:0.4} 40%{transform:translateY(-6px);opacity:1} }
+@keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.5} }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="avatar">🦝</div>
+  <div class="header-info">
+    <h1>Raccoon AI 智能客服</h1>
+    <p>AI 驅動 · 即時回覆 · 可轉接真人</p>
+  </div>
+  <div class="status-dot"></div>
+</div>
+
+<!-- Quick chips -->
+<div class="chips">
+  <button class="chip" onclick="ask('AI 客服方案有哪些？')">🤖 AI 客服方案</button>
+  <button class="chip" onclick="ask('AI Agent 是什麼？')">⚡ AI Agent</button>
+  <button class="chip" onclick="ask('價格怎麼算？')">💰 方案定價</button>
+  <button class="chip" onclick="ask('導入流程是什麼？')">🗺️ 導入流程</button>
+  <button class="chip" onclick="ask('我要申請試用')">🎯 申請試用</button>
+  <button class="chip" onclick="ask('我想轉接真人客服')">👤 真人客服</button>
+</div>
+
+<!-- Chat area -->
+<div class="chat" id="chat">
+  <div class="date-stamp" id="dateStamp"></div>
+</div>
+
+<!-- Input -->
+<div class="input-bar">
+  <textarea id="input" placeholder="輸入您的問題…" rows="1"
+    onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+  <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `你是 Raccoon AI 的智能客服助理，名字叫「小浣熊」。你的任務是：
+1. 友善、簡潔地回答客戶問題
+2. 根據客戶需求推薦合適的產品方案
+3. 遇到退款、合約糾紛、帳號異常等敏感問題，說明需要轉接真人客服
+
+【公司介紹】
+Raccoon AI 是一家 AI 解決方案公司，專注於企業 AI Agent 落地（客服、銷售、營運）。
+
+【產品方案】
+1. AI 客服基礎版 - 適合中小企業，月費 NT$3,990，可處理常見問答、FAQ 自動回覆、基本轉接
+2. AI 客服專業版 - 適合成長型企業，月費 NT$9,990，含多管道整合（LINE/網站/App）、情緒分析、客服績效報表
+3. AI Agent 企業版 - 適合大型企業，客製化報價，含完整 AI Agent 部署、系統整合、專屬顧問服務
+4. Vibe Coding 雛形服務 - 快速原型開發，幫助企業在 2 週內看到 AI 產品雛形，一次性費用
+
+【常見問題 FAQ】
+Q: 導入需要多久？A: 基礎版約 1-2 週，專業版約 3-4 週，企業版視需求 4-8 週
+Q: 可以試用嗎？A: 可以，提供 14 天免費試用，無需信用卡
+Q: 支援哪些管道？A: LINE、網站嵌入、App API 串接，企業版另支援 Slack、Teams
+Q: 準確率多高？A: 基礎版約 85%，專業版透過持續訓練可達 92% 以上
+Q: 有技術支援嗎？A: 所有方案含郵件支援，專業版以上含即時客服
+
+【回覆規則】
+- 語氣親切自然，使用繁體中文
+- 回覆控制在 150 字以內，重點突出
+- 推薦產品時，說明推薦理由，最多推薦 2 個方案
+- 若問題涉及退款、合約、帳號問題，必須說需要轉接真人客服，並在回覆末尾加 [HANDOFF]
+- 若不確定，誠實說明
+
+若需要推薦產品，在回覆最後加標記：
+[RECOMMEND:方案名稱1|推薦理由1][RECOMMEND:方案名稱2|推薦理由2]
+若需轉接真人，在回覆最後加：[HANDOFF]`;
+
+const PRODUCTS = {
+  'AI 客服基礎版':       { icon:'🤖', desc:'月費 NT$3,990 · 中小企業首選 · 14天免費試用', badge:'入門推薦' },
+  'AI 客服專業版':       { icon:'⚡', desc:'月費 NT$9,990 · 多管道整合 · 情緒分析報表',   badge:'最受歡迎' },
+  'AI Agent 企業版':     { icon:'🏢', desc:'客製化報價 · 完整 AI Agent · 專屬顧問服務',   badge:'企業首選' },
+  'Vibe Coding 雛形服務':{ icon:'🛠️', desc:'2週快速原型 · 一次性費用 · 視覺化展示',      badge:'快速驗證' },
+};
+
+let history = [];
+let loading = false;
+
+// Set date
+document.getElementById('dateStamp').textContent =
+  new Date().toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric' });
+
+// Welcome message
+setTimeout(() => {
+  addBotMessage('嗨！我是小浣熊 🦝，Raccoon AI 的智能客服。\n\n我可以幫您了解 AI 產品方案、導入流程，或回答常見問題。請問有什麼可以幫您的嗎？');
+}, 400);
+
+function parseResponse(text) {
+  const recs = [];
+  const re = /\[RECOMMEND:([^|]+)\|([^\]]+)\]/g;
+  let m;
+  while ((m = re.exec(text)) !== null) recs.push([m[1].trim(), m[2].trim()]);
+  const handoff = text.includes('[HANDOFF]');
+  const clean = text.replace(/\[RECOMMEND:[^\]]+\]/g, '').replace('[HANDOFF]', '').trim();
+  return { clean, recs, handoff };
+}
+
+function addUserMessage(text) {
+  const chat = document.getElementById('chat');
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = `
+    <div class="msg-inner">
+      <div class="bubble">${escHtml(text)}</div>
+      <div class="msg-icon">👤</div>
+    </div>`;
+  chat.appendChild(row);
+  scrollBottom();
+}
+
+function addBotMessage(text, recs = [], handoff = false) {
+  const chat = document.getElementById('chat');
+
+  // Main bubble
+  const row = document.createElement('div');
+  row.className = 'msg-row bot';
+  row.innerHTML = `
+    <div class="msg-inner">
+      <div class="msg-icon" style="background:linear-gradient(135deg,#4f8eff,#7c5cfc)">🦝</div>
+      <div class="bubble">${escHtml(text)}</div>
+    </div>`;
+  chat.appendChild(row);
+
+  // Product cards
+  recs.forEach(([name, reason]) => {
+    const p = PRODUCTS[name];
+    if (!p) return;
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.innerHTML = `
+      <div class="product-icon">${p.icon}</div>
+      <div>
+        <div class="product-name">${escHtml(name)}</div>
+        <div class="product-desc">${escHtml(p.desc)}</div>
+        <div class="product-reason">${escHtml(reason)}</div>
+        <span class="product-badge">${p.badge}</span>
+      </div>`;
+    chat.appendChild(card);
+  });
+
+  // Handoff notice
+  if (handoff) {
+    const notice = document.createElement('div');
+    notice.className = 'handoff';
+    notice.innerHTML = '🔴 正在為您轉接真人客服，請稍候。服務時間：週一至週五 9:00–18:00';
+    chat.appendChild(notice);
+  }
+
+  // Quick replies
+  if (!handoff) {
+    const qr = document.createElement('div');
+    qr.className = 'quick-replies';
+    ['了解更多方案', '申請免費試用', '我有其他問題'].forEach(q => {
+      const btn = document.createElement('button');
+      btn.className = 'qr-btn';
+      btn.textContent = q;
+      btn.onclick = () => ask(q);
+      qr.appendChild(btn);
+    });
+    chat.appendChild(qr);
+  }
+
+  scrollBottom();
+}
+
+function showTyping() {
+  const chat = document.getElementById('chat');
+  const el = document.createElement('div');
+  el.className = 'typing-row'; el.id = 'typing';
+  el.innerHTML = `
+    <div class="msg-icon" style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4f8eff,#7c5cfc);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🦝</div>
+    <div class="typing-bubble">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>`;
+  chat.appendChild(el);
+  scrollBottom();
+}
+
+function hideTyping() {
+  const el = document.getElementById('typing');
+  if (el) el.remove();
+}
+
+function scrollBottom() {
+  const chat = document.getElementById('chat');
+  setTimeout(() => { chat.scrollTop = chat.scrollHeight; }, 50);
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function sendMessage(override) {
+  if (loading) return;
+  const inputEl = document.getElementById('input');
+  const text = (override !== undefined ? override : inputEl.value).trim();
+  if (!text) return;
+
+  inputEl.value = '';
+  inputEl.style.height = '44px';
+  document.getElementById('sendBtn').disabled = true;
+
+  addUserMessage(text);
+  history.push({ role: 'user', content: text });
+  loading = true;
+  showTyping();
+
+  try {
+    // Call via /api/chat (Vercel serverless function)
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: history
+      })
+    });
+
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '抱歉，我暫時無法回應，請稍後再試。';
+    const { clean, recs, handoff } = parseResponse(raw);
+    history.push({ role: 'assistant', content: raw });
+    hideTyping();
+    addBotMessage(clean, recs, handoff);
+  } catch (err) {
+    hideTyping();
+    addBotMessage('抱歉，目前連線發生問題，請稍後再試或直接聯繫我們的客服團隊。');
+  }
+
+  loading = false;
+  document.getElementById('sendBtn').disabled = false;
+}
+
+function ask(q) { sendMessage(q); }
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = '44px';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+</script>
+</body>
+</html>
