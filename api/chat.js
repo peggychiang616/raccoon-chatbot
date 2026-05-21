@@ -1,27 +1,42 @@
 export default async function handler(req, res) {
-  // Allow cross-origin requests
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  // Debug: check if key exists
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API key not configured', debug: 'ANTHROPIC_API_KEY is empty or undefined' });
+  }
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify(req.body)
     });
 
     const data = await response.json();
-    res.status(response.status).json(data);
+
+    // Return full error details for debugging
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: 'Anthropic API error',
+        status: response.status,
+        details: data
+      });
+    }
+
+    res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 }
